@@ -57,6 +57,23 @@ estrategia, límites de riesgo y fuentes de noticias. Las credenciales van
 > acciones de verdad, la arquitectura admite agregar un broker con API como
 > Alpaca implementando la interfaz `bot/execution/base.py`.
 
+## Mejora continua (medir la certeza de la estrategia)
+
+El ciclo de iteración del bot tiene tres herramientas:
+
+```bash
+python scripts/recommend.py            # ¿qué activos conviene operar hoy?
+python scripts/backtest.py             # ¿cómo le habría ido a la estrategia? (--optimize prueba variantes)
+python scripts/report.py [--send]      # ¿cómo va el paper trading real? (--send lo manda al webhook)
+```
+
+El flujo: backtest para validar cambios de parámetros → ajustar `config.yaml`
+→ dejar correr en paper → revisar el reporte (aciertos, PnL realizado) →
+repetir. Nunca cambies parámetros solo porque una variante ganó en un
+backtest: exige también que tenga sentido y que lo confirme el paper trading
+(el backtest no incluye el sentimiento de noticias y puede sobreajustarse al
+pasado).
+
 ## Pruebas
 
 ```bash

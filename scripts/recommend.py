@@ -22,45 +22,15 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import pandas as pd
 
 from bot.config import Config
+from bot.data.history import fetch_daily
 from bot.data.news_feed import NewsFeed
 from bot.strategy.strategy import Strategy
 
-# Pares spot líquidos disponibles en Bybit (y su ticker en Yahoo Finance)
-CANDIDATES = {
-    "BTC/USDT": "BTC-USD",
-    "ETH/USDT": "ETH-USD",
-    "SOL/USDT": "SOL-USD",
-    "BNB/USDT": "BNB-USD",
-    "XRP/USDT": "XRP-USD",
-    "ADA/USDT": "ADA-USD",
-    "AVAX/USDT": "AVAX-USD",
-    "LINK/USDT": "LINK-USD",
-    "DOGE/USDT": "DOGE-USD",
-    "DOT/USDT": "DOT-USD",
-}
-
-
-def fetch_daily(symbol: str, yahoo_ticker: str, days: int = 200) -> pd.DataFrame | None:
-    try:
-        import ccxt
-        raw = ccxt.bybit({"enableRateLimit": True}).fetch_ohlcv(symbol, "1d", limit=days)
-        if raw:
-            df = pd.DataFrame(raw, columns=["timestamp", "open", "high", "low", "close", "volume"])
-            df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms", utc=True)
-            return df
-    except Exception:
-        pass
-    try:
-        import yfinance as yf
-        hist = yf.Ticker(yahoo_ticker).history(period=f"{days}d", interval="1d")
-        if hist is None or hist.empty:
-            return None
-        df = hist.reset_index().rename(columns={
-            "Date": "timestamp", "Open": "open", "High": "high",
-            "Low": "low", "Close": "close", "Volume": "volume"})
-        return df[["timestamp", "open", "high", "low", "close", "volume"]]
-    except Exception:
-        return None
+# Pares spot líquidos disponibles en Bybit
+CANDIDATES = [
+    "BTC/USDT", "ETH/USDT", "SOL/USDT", "BNB/USDT", "XRP/USDT",
+    "ADA/USDT", "AVAX/USDT", "LINK/USDT", "DOGE/USDT", "DOT/USDT",
+]
 
 
 def analyze(top_n: int):
@@ -69,8 +39,8 @@ def analyze(top_n: int):
     news = NewsFeed(config.news.get("feeds", []), config.news.get("max_headlines", 60))
 
     rows = []
-    for symbol, yahoo in CANDIDATES.items():
-        df = fetch_daily(symbol, yahoo)
+    for symbol in CANDIDATES:
+        df = fetch_daily(symbol, 200)
         if df is None or len(df) < 91:
             print(f"  (sin datos suficientes para {symbol}, se omite)")
             continue
