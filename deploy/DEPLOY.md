@@ -89,6 +89,32 @@ sudo systemctl restart tradebot
 
 ## 4. Actualizar el bot cuando haya cambios
 
+### 4.1 Automático (recomendado en paper/testnet)
+
+Un systemd timer revisa GitHub cada 15 minutos; si hay commits nuevos:
+actualiza, instala dependencias, **corre las pruebas** y solo entonces
+reinicia el bot. Si las pruebas fallan, revierte a la versión anterior y
+avisa al webhook. Instalación (una vez, como root):
+
+```bash
+chmod +x /home/tradebot/tradebot_alex/deploy/autoupdate.sh
+cp /home/tradebot/tradebot_alex/deploy/tradebot-autoupdate.{service,timer} /etc/systemd/system/
+systemctl daemon-reload
+systemctl enable --now tradebot-autoupdate.timer
+systemctl list-timers tradebot-autoupdate.timer   # verificar
+journalctl -u tradebot-autoupdate -f              # ver los despliegues
+```
+
+Cada despliegue exitoso manda el evento `autoupdate` al webhook, y el
+heartbeat del bot al arrancar confirma que la nueva versión corre.
+
+> ⚠️ Cuando el bot opere con dinero REAL, desactiva el auto-update
+> (`systemctl disable --now tradebot-autoupdate.timer`) y vuelve al flujo
+> manual con revisión humana: ningún cambio de estrategia debería llegar a
+> producción con fondos reales sin que apruebes el diff.
+
+### 4.2 Manual
+
 ```bash
 sudo -u tradebot -i bash -c "cd tradebot_alex && git pull origin claude/awesome-galileo-rgtta1 && venv/bin/pip install -r requirements.txt"
 sudo systemctl restart tradebot

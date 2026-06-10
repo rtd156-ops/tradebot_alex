@@ -1,0 +1,11 @@
+# Revisa GitHub cada 15 minutos y despliega si hay cambios (con pruebas)
+[Unit]
+Description=Timer del auto-update del tradebot
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=15min
+RandomizedDelaySec=60
+
+[Install]
+WantedBy=timers.target

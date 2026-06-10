@@ -1,0 +1,8 @@
+# Servicio oneshot que ejecuta el auto-update (disparado por el timer)
+[Unit]
+Description=Tradebot auto-update desde GitHub
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/home/tradebot/tradebot_alex/deploy/autoupdate.sh
