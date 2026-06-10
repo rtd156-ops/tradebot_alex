@@ -29,6 +29,7 @@ class Engine:
             config.notifications.get("telegram", False),
             config.webhook_url, config.webhook_token,
             config.notifications.get("webhook", False),
+            exchange="bybit" if config.mode == "live" else "paper",
         )
         self.broker = self._build_broker()
 
@@ -56,6 +57,19 @@ class Engine:
         for s in self.config.stock_symbols:
             yield s, self.stocks, not live
 
+    @staticmethod
+    def _trade_data(symbol, pos, exit_price: float, reason: str, score: float | None = None) -> dict:
+        """Payload de cierre de posición para el webhook (PnL bruto, sin comisiones)."""
+        data = {
+            "symbol": symbol.replace("/", ""), "side": "long",
+            "qty": round(pos.qty, 8), "entry": pos.entry_price, "exit": exit_price,
+            "pnl": round((exit_price - pos.entry_price) * pos.qty, 2),
+            "reason": reason,
+        }
+        if score is not None:
+            data["score"] = score
+        return data
+
     def run_cycle(self):
         timeframe = self.config.strategy.get("timeframe", "1h")
         lookback = self.config.strategy.get("lookback_candles", 200)
@@ -77,7 +91,11 @@ class Engine:
             if pos:
                 exit_reason = self.risk.check_exit(pos.entry_price, price)
                 if exit_reason and self.broker.sell(symbol, price):
-                    self.notifier.notify(f"{exit_reason}: vendido {symbol} @ {price:.2f}")
+                    self.notifier.notify(
+                        f"{exit_reason}: vendido {symbol} @ {price:.2f}",
+                        event="trade_closed",
+                        data=self._trade_data(symbol, pos, price, reason=exit_reason.lower()),
+                    )
                     continue
 
             # 2. Señal de la estrategia (técnicos + noticias)
@@ -88,7 +106,11 @@ class Engine:
                 if signal.action != "HOLD":
                     self.notifier.notify(
                         f"SEÑAL (sin ejecutar) {signal.action} {symbol} @ {price:.2f} "
-                        f"(score {signal.score})")
+                        f"(score {signal.score})",
+                        event="signal",
+                        data={"symbol": symbol.replace("/", ""), "action": signal.action,
+                              "price": price, "score": signal.score},
+                    )
                 continue
 
             if signal.action == "BUY" and not pos:
@@ -99,11 +121,20 @@ class Engine:
                 amount = self.risk.position_size(value, self.broker.get_cash())
                 if amount >= 10 and self.broker.buy(symbol, amount, price):
                     self.notifier.notify(
-                        f"COMPRA {symbol} @ {price:.2f} ({amount:.2f} USD, score {signal.score})")
+                        f"COMPRA {symbol} @ {price:.2f} ({amount:.2f} USD, score {signal.score})",
+                        event="trade_opened",
+                        data={"symbol": symbol.replace("/", ""), "side": "long",
+                              "qty": round(amount / price, 8), "price": price,
+                              "usd_amount": round(amount, 2), "score": signal.score},
+                    )
             elif signal.action == "SELL" and pos:
                 if self.broker.sell(symbol, price):
                     self.notifier.notify(
-                        f"VENTA {symbol} @ {price:.2f} (score {signal.score})")
+                        f"VENTA {symbol} @ {price:.2f} (score {signal.score})",
+                        event="trade_closed",
+                        data=self._trade_data(symbol, pos, price,
+                                              reason="signal", score=signal.score),
+                    )
 
         value = self.broker.portfolio_value(prices)
         log.info("Fin de ciclo. Valor del portafolio: %.2f USD (efectivo: %.2f)",
