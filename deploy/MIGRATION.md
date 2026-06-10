@@ -29,11 +29,34 @@ tar czf /root/respaldo_tradebot.tar.gz \
   /home/tradebot/tradebot_alex/data/state/
 ```
 
-### 1c. Descárgalos FUERA del servidor (desde tu PC)
+### 1c. Respaldo de los demás proyectos del servidor
+
+Nota: los backups/snapshots del panel de Hostinger NO sobreviven el cambio
+de ubicación (se borran con la reinstalación y no se pueden descargar), así
+que todo respaldo debe ser manual. Inventaría lo que corre en el servidor
+para no olvidar nada:
+
+```bash
+systemctl list-units --type=service --state=running   # ¿qué servicios hay?
+ls /home /opt /var/www /srv                            # ¿dónde viven los proyectos?
+```
+
+Por cada proyecto (p. ej. el de finanzas personales): archiva su carpeta
+completa (código, `.env`, datos). Si usa base de datos, exporta un dump:
+
+```bash
+tar czf /root/respaldo_finanzas.tar.gz /ruta/del/proyecto
+# PostgreSQL:  sudo -u postgres pg_dumpall > /root/finanzas_db.sql
+# MySQL:       mysqldump --all-databases > /root/finanzas_db.sql
+# SQLite:      ya va incluido en el tar de la carpeta
+```
+
+### 1d. Descárgalos FUERA del servidor (desde tu PC)
 
 ```powershell
 scp root@<ip_actual>:/root/openclaw-state.tgz .
 scp root@<ip_actual>:/root/respaldo_tradebot.tar.gz .
+scp root@<ip_actual>:/root/respaldo_finanzas.tar.gz .
 ```
 
 Los archivos contienen claves en texto plano: guárdalos en un lugar seguro
