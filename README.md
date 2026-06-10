@@ -57,6 +57,53 @@ estrategia, límites de riesgo y fuentes de noticias. Las credenciales van
 > acciones de verdad, la arquitectura admite agregar un broker con API como
 > Alpaca implementando la interfaz `bot/execution/base.py`.
 
+## Modo multi-estrategia
+
+Con `multi_strategy.enabled: true` (default del repo), una sola instancia del
+bot corre N estrategias (`conservative`, `normal`, `aggressive`) sobre la
+misma wallet, con separación lógica de capital:
+
+- **Ledger SQLite** (`data/state/ledger.sqlite`): fuente de verdad local.
+  Cash, posiciones, órdenes, trades, señales (ejecutadas y rechazadas con
+  motivo) y eventos, por estrategia. Sobrevive reinicios.
+- **Allocator central** (`bot/allocator.py`): cada estrategia solo puede usar
+  su `capital_limit_usd`; valida límite diario, posición duplicada, mínimo de
+  orden y que el total no exceda el balance real de la wallet.
+- **Reconciliación**: en cada ciclo se compara el ledger contra la wallet
+  real. Si el ledger reclama más cash/monedas de las que existen, el bot
+  **bloquea toda ejecución** y notifica (`balance_check` + `risk_block`).
+- **orderLinkId**: cada orden en Bybit viaja etiquetada como
+  `<estrategia>-<símbolo>-<timestamp>-<uuid>`, visible en el historial del
+  exchange y mapeada localmente en la tabla `orders`.
+- **Webhook**: todos los eventos llevan `strategy_id`. Tipos: `signal`,
+  `trade_opened`, `trade_closed`, `rejected_signal`, `risk_block`,
+  `balance_check`, `heartbeat`, `error`, `daily_report`.
+
+```bash
+python main.py --once                          # dry-run de un ciclo (paper)
+python scripts/strategy_report.py [--send]     # métricas por estrategia
+python scripts/backtest.py --compare           # estrategias sobre los mismos datos
+```
+
+### Decisiones de arquitectura
+
+- **Bloqueo total ante divergencia**: si ledger y wallet no cuadran, se
+  bloquean compras Y ventas (no solo compras). Una divergencia indica
+  intervención externa o un bug; operar "a ciegas" podría vender monedas de
+  otra estrategia. Se resuelve con intervención humana (ajustar el ledger o
+  la wallet) y el bloqueo se libera solo cuando la reconciliación pasa.
+- **Cash lógico vs. capital**: el cash de cada estrategia se inicializa con
+  su `capital_limit_usd`; si el límite cambia en la config, la diferencia se
+  aplica al cash y queda registrada como evento `capital_adjusted`.
+- **El rechazo `position_open` no se notifica al webhook** (se repetiría
+  cada ciclo mientras la posición siga abierta); sí queda auditado en la
+  tabla `signals`.
+- **Tolerancia de reconciliación del 2% + 1 USD**: cubre comisiones y
+  redondeos de qty del exchange sin enmascarar divergencias reales.
+- El modo multi solo opera **cripto**; las acciones siguen disponibles en el
+  modo single-strategy (`multi_strategy.enabled: false`), que se conserva
+  intacto por compatibilidad.
+
 ## Mejora continua (medir la certeza de la estrategia)
 
 El ciclo de iteración del bot tiene tres herramientas:

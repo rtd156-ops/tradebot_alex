@@ -39,7 +39,13 @@ def main():
         log.warning("¡ATENCIÓN! Modo LIVE con dinero real. Tienes 10 segundos para cancelar (Ctrl+C)...")
         time.sleep(10)
 
-    engine = Engine(config)
+    if config.multi_strategy_enabled:
+        from bot.multi_engine import MultiEngine
+        log.info("Modo MULTI-ESTRATEGIA: %s",
+                 [s.strategy_id for s in config.strategies()])
+        engine = MultiEngine(config)
+    else:
+        engine = Engine(config)
 
     while True:
         try:

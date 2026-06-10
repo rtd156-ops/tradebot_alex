@@ -31,16 +31,47 @@ GRID = [
 ]
 
 
+def compare_strategies(config: Config, data: dict, days: int):
+    """Corre las estrategias del modo multi sobre los MISMOS datos históricos."""
+    strategies = config.strategies()
+    if not strategies:
+        print("No hay estrategias definidas en multi_strategy.")
+        return
+    rows = []
+    for strat in strategies:
+        for symbol, df in data.items():
+            if symbol not in strat.assets:
+                continue
+            r = run_backtest(symbol, df, strat.strategy, strat.portfolio)
+            rows.append({
+                "estrategia": strat.strategy_id, "símbolo": symbol,
+                "operaciones": r.trades, "aciertos_%": round(r.win_rate * 100, 1),
+                "retorno_%": r.total_return_pct, "max_dd_%": r.max_drawdown_pct,
+                "buy&hold_%": r.buy_hold_pct,
+            })
+    table = pd.DataFrame(rows)
+    print(f"\n=== Backtest comparativo {days} días (mismos datos para todas) ===\n")
+    print(table.to_string(index=False))
+    print("\n--- Promedio por estrategia ---")
+    summary = table.groupby("estrategia")[["retorno_%", "aciertos_%", "operaciones"]].mean().round(1)
+    print(summary.to_string())
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--symbols", nargs="*", default=None)
     parser.add_argument("--days", type=int, default=365)
     parser.add_argument("--optimize", action="store_true")
+    parser.add_argument("--compare", action="store_true",
+                        help="comparar las estrategias de multi_strategy entre sí")
     args = parser.parse_args()
 
     root = Path(__file__).resolve().parent.parent
     config = Config.load(str(root / "config.yaml"))
     symbols = args.symbols or config.crypto_symbols
+    if args.compare:
+        symbols = args.symbols or sorted(
+            {s for strat in config.strategies() for s in strat.assets})
 
     data = {}
     for symbol in symbols:
@@ -49,6 +80,10 @@ def main():
             print(f"(sin datos suficientes para {symbol}, se omite)")
             continue
         data[symbol] = df
+
+    if args.compare:
+        compare_strategies(config, data, args.days)
+        return
 
     if not args.optimize:
         rows = []

@@ -65,6 +65,28 @@ notifications:
 
 Sus valores se aplican encima de `config.yaml` al arrancar el bot.
 
+## 3.2 Migrar del bot single-strategy al multi-estrategia
+
+El modo multi viene activado en `config.yaml` del repo. Para actualizar un
+servidor que ya corre el bot, sin perder configuración local:
+
+```bash
+sudo -u tradebot -i bash -c "cd tradebot_alex && git pull origin claude/awesome-galileo-rgtta1"
+sudo systemctl restart tradebot
+```
+
+- Tu `config.local.yaml` y `.env` no se tocan (mode, webhook y keys siguen
+  igual). Para volver al modo clásico: `multi_strategy: {enabled: false}`
+  en `config.local.yaml`.
+- El primer arranque crea `data/state/ledger.sqlite` con el cash inicial de
+  cada estrategia. El estado del modo single (`paper_portfolio.json`) no se
+  migra: las posiciones lógicas multi empiezan en cero.
+- En testnet, verifica que la wallet tenga al menos la suma de los
+  `capital_limit_usd` (10,000 USDT con la config default); si no, la
+  reconciliación bloqueará la ejecución por diseño.
+- Verifica en el log: `Modo MULTI-ESTRATEGIA: ['conservative', 'normal',
+  'aggressive']` y el heartbeat con el cash por estrategia.
+
 ## 4. Actualizar el bot cuando haya cambios
 
 ```bash

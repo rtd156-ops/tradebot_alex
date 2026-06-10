@@ -51,6 +51,53 @@ strategy:
   buy_threshold: 0.5
   sell_threshold: -0.5
 
+# --- Modo multi-estrategia ---
+# Varias estrategias corren en una sola instancia del bot, sobre la misma
+# wallet, con capital separado lógicamente por un ledger SQLite y un
+# allocator central. Cada estrategia hereda los bloques 'strategy' y
+# 'portfolio' de arriba y puede sobrescribir cualquier parámetro.
+# Si enabled=false, el bot opera en modo single-strategy clásico.
+multi_strategy:
+  enabled: true
+  # Si los assets de una estrategia se omiten, usa assets.crypto.
+  strategies:
+    conservative:
+      enabled: true
+      capital_limit_usd: 2000
+      portfolio:
+        max_position_pct: 0.08
+        stop_loss_pct: 0.03
+        take_profit_pct: 0.06
+        max_daily_trades: 2
+      strategy:
+        buy_threshold: 0.65
+        sell_threshold: -0.45
+        news_weight: 0.2
+    normal:
+      enabled: true
+      capital_limit_usd: 3000
+      portfolio:
+        max_position_pct: 0.15
+        stop_loss_pct: 0.05
+        take_profit_pct: 0.10
+        max_daily_trades: 4
+      strategy:
+        buy_threshold: 0.5
+        sell_threshold: -0.5
+        news_weight: 0.3
+    aggressive:
+      enabled: true
+      capital_limit_usd: 5000
+      portfolio:
+        max_position_pct: 0.25
+        stop_loss_pct: 0.08
+        take_profit_pct: 0.16
+        max_daily_trades: 8
+      strategy:
+        buy_threshold: 0.35
+        sell_threshold: -0.6
+        news_weight: 0.4
+
 news:
   enabled: true
   # Fuentes RSS de noticias financieras y cripto

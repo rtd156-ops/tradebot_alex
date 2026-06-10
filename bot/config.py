@@ -27,6 +27,17 @@ def _deep_merge(base: dict, override: dict) -> dict:
 
 
 @dataclass
+class StrategyConfig:
+    """Configuración resuelta de una estrategia del modo multi-estrategia."""
+    strategy_id: str
+    enabled: bool
+    capital_limit_usd: float
+    assets: list
+    strategy: dict   # parámetros de señal (sma, rsi, umbrales, news_weight...)
+    portfolio: dict  # parámetros de riesgo (max_position_pct, stops, límites...)
+
+
+@dataclass
 class Config:
     raw: dict = field(default_factory=dict)
 
@@ -77,6 +88,32 @@ class Config:
     @property
     def notifications(self) -> dict:
         return self.raw.get("notifications", {})
+
+    # --- Multi-estrategia ---
+    @property
+    def multi_strategy_enabled(self) -> bool:
+        return bool(self.raw.get("multi_strategy", {}).get("enabled", False))
+
+    def strategies(self) -> list[StrategyConfig]:
+        """Estrategias habilitadas, con los bloques base 'strategy' y
+        'portfolio' del YAML como defaults y los overrides aplicados encima."""
+        result = []
+        defined = self.raw.get("multi_strategy", {}).get("strategies", {}) or {}
+        for sid, spec in defined.items():
+            spec = spec or {}
+            if not spec.get("enabled", True):
+                continue
+            strategy_params = _deep_merge(dict(self.strategy), dict(spec.get("strategy", {}) or {}))
+            portfolio_params = _deep_merge(dict(self.portfolio), dict(spec.get("portfolio", {}) or {}))
+            result.append(StrategyConfig(
+                strategy_id=sid,
+                enabled=True,
+                capital_limit_usd=float(spec.get("capital_limit_usd", 0)),
+                assets=list(spec.get("assets", self.crypto_symbols)),
+                strategy=strategy_params,
+                portfolio=portfolio_params,
+            ))
+        return result
 
     # --- Credenciales (solo desde variables de entorno, nunca del YAML) ---
     @property
