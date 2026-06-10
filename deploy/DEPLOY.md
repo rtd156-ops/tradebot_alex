@@ -51,6 +51,20 @@ sudo systemctl restart tradebot        # reiniciar (ej. tras cambiar config)
 sudo systemctl stop tradebot           # detener
 ```
 
+## 3.1 Configuración propia del servidor (config.local.yaml)
+
+No edites `config.yaml` en el servidor: un `git pull` puede pisarlo. Crea un
+`config.local.yaml` junto a él (está en `.gitignore`) solo con lo que cambie
+en esta máquina, por ejemplo:
+
+```yaml
+mode: paper
+notifications:
+  webhook: true
+```
+
+Sus valores se aplican encima de `config.yaml` al arrancar el bot.
+
 ## 4. Actualizar el bot cuando haya cambios
 
 ```bash

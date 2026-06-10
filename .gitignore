@@ -1,6 +1,7 @@
 __pycache__/
 *.pyc
 .env
+config.local.yaml
 venv/
 .venv/
 data/state/
