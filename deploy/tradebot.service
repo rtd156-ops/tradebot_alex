@@ -1,0 +1,19 @@
+# Servicio systemd para correr el bot 24/7 con reinicio automático.
+# Instalación: ver deploy/DEPLOY.md
+[Unit]
+Description=Tradebot Alex - bot de trading
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=tradebot
+WorkingDirectory=/home/tradebot/tradebot_alex
+ExecStart=/home/tradebot/tradebot_alex/venv/bin/python main.py
+Restart=always
+RestartSec=30
+# Limita memoria por si alguna librería se descontrola
+MemoryMax=512M
+
+[Install]
+WantedBy=multi-user.target
