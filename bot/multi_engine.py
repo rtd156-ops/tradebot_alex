@@ -22,7 +22,7 @@ from .execution.clients import BybitExecution, PaperExecution, make_order_link_i
 from .ledger import Ledger
 from .notifier import Notifier
 from .risk import RiskManager
-from .strategy.strategy import Strategy
+from .strategy.models import build_strategy
 
 log = logging.getLogger(__name__)
 
@@ -58,7 +58,7 @@ class MultiEngine:
         self._engines = {}
         for s in self.strategies:
             self.ledger.ensure_strategy(s.strategy_id, s.capital_limit_usd)
-            self._engines[s.strategy_id] = (Strategy(s.strategy), RiskManager(s.portfolio))
+            self._engines[s.strategy_id] = (build_strategy(s.strategy), RiskManager(s.portfolio))
             log.info("Estrategia '%s': capital %.2f USD, activos %s",
                      s.strategy_id, s.capital_limit_usd, s.assets)
 

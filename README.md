@@ -85,6 +85,22 @@ python scripts/strategy_report.py [--send]     # métricas por estrategia
 python scripts/backtest.py --compare           # estrategias sobre los mismos datos
 ```
 
+### Modelos de señal
+
+Cada estrategia elige su lógica con `signal_model` en su bloque `strategy`
+(`bot/strategy/models.py`):
+
+| Modelo | Lógica | Brilla en |
+|---|---|---|
+| `trend` (default) | Cruce SMA + RSI + MACD | Tendencias sostenidas |
+| `mean_reversion` | Bollinger + RSI: compra pánico bajo la banda inferior, vende el rebote a la media | Mercados laterales |
+| `breakout` | Canal de Donchian 20/10 (estilo Turtle) con filtro de tendencia SMA50 | Inicios de tendencia fuerte |
+
+Todos combinan su score técnico con el sentimiento de noticias vía
+`news_weight` y se comparan con `python scripts/backtest.py --compare`.
+Para agregar un modelo nuevo: implementar la interfaz `generate()` +
+`min_candles` y registrarlo en `MODELS`.
+
 ### Protecciones (inspiradas en Freqtrade)
 
 Configurables por estrategia en el bloque `portfolio` (heredan del base):

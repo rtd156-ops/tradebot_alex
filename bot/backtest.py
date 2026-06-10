@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 import pandas as pd
 
 from .risk import RiskManager
-from .strategy.strategy import Strategy
+from .strategy.models import build_strategy
 
 
 @dataclass
@@ -33,11 +33,11 @@ class BacktestResult:
 
 def run_backtest(symbol: str, df: pd.DataFrame, strategy_params: dict,
                  risk_params: dict, fee_pct: float = 0.001) -> BacktestResult:
-    strategy = Strategy(strategy_params)
+    strategy = build_strategy(strategy_params)
     risk = RiskManager(risk_params)
     result = BacktestResult(symbol=symbol)
 
-    warmup = strategy.sma_slow + 5
+    warmup = strategy.min_candles
     if len(df) <= warmup + 1:
         return result
 

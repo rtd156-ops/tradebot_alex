@@ -32,6 +32,7 @@ class Strategy:
         self.news_weight = params.get("news_weight", 0.3)
         self.buy_threshold = params.get("buy_threshold", 0.5)
         self.sell_threshold = params.get("sell_threshold", -0.5)
+        self.min_candles = self.sma_slow + 5
 
     def technical_score(self, df: pd.DataFrame) -> tuple[float, dict]:
         close = df["close"]
