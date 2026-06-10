@@ -68,3 +68,6 @@ notifications:
   # Notificar vía webhook HTTP, por ejemplo a un agente de OpenClaw
   # (requiere WEBHOOK_URL en .env; el bot manda POST JSON {"text": mensaje})
   webhook: false
+  # Latido: cada cuántas horas mandar una señal de vida con el estado del
+  # portafolio (0 = desactivado). También se manda al arrancar el bot.
+  heartbeat_hours: 24

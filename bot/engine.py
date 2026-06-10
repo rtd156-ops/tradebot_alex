@@ -1,5 +1,6 @@
 """Motor del bot: en cada ciclo descarga datos, genera señales y ejecuta órdenes."""
 import logging
+import time
 
 from .config import Config
 from .data.crypto_feed import CryptoFeed
@@ -32,6 +33,7 @@ class Engine:
             exchange="bybit" if config.mode == "live" else "paper",
         )
         self.broker = self._build_broker()
+        self._last_heartbeat = 0.0
 
     def _build_broker(self):
         if self.config.mode == "live":
@@ -139,3 +141,18 @@ class Engine:
         value = self.broker.portfolio_value(prices)
         log.info("Fin de ciclo. Valor del portafolio: %.2f USD (efectivo: %.2f)",
                  value, self.broker.get_cash())
+        self._heartbeat(value, len(prices))
+
+    def _heartbeat(self, portfolio_value: float, assets_ok: int):
+        """Señal de vida periódica (y al arrancar) para confirmar que el bot corre."""
+        hours = self.config.notifications.get("heartbeat_hours", 0)
+        if not hours or time.time() - self._last_heartbeat < hours * 3600:
+            return
+        self._last_heartbeat = time.time()
+        self.notifier.notify(
+            f"💓 Bot activo ({self.config.mode}). Portafolio: {portfolio_value:,.2f} USD. "
+            f"Activos con datos: {assets_ok}.",
+            event="heartbeat",
+            data={"portfolio_value": round(portfolio_value, 2),
+                  "mode": self.config.mode, "assets_ok": assets_ok},
+        )
