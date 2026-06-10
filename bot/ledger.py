@@ -33,6 +33,7 @@ CREATE TABLE IF NOT EXISTS positions(
     cost REAL NOT NULL,
     order_link_id TEXT,
     opened_at TEXT NOT NULL,
+    peak_price REAL,
     PRIMARY KEY(strategy_id, symbol)
 );
 CREATE TABLE IF NOT EXISTS orders(
@@ -89,7 +90,16 @@ class Ledger:
         self.conn = sqlite3.connect(path)
         self.conn.row_factory = sqlite3.Row
         self.conn.executescript(_SCHEMA)
+        self._migrate()
         self.conn.commit()
+
+    def _migrate(self):
+        """Migraciones de esquema para bases creadas por versiones anteriores."""
+        columns = {r["name"] for r in self.conn.execute("PRAGMA table_info(positions)")}
+        if "peak_price" not in columns:
+            self.conn.execute("ALTER TABLE positions ADD COLUMN peak_price REAL")
+            self.conn.execute("UPDATE positions SET peak_price=entry_price")
+            log.info("Migración: columna peak_price agregada a positions")
 
     # --- Estrategias y cash ---
     def ensure_strategy(self, strategy_id: str, capital_limit_usd: float):
@@ -135,8 +145,9 @@ class Ledger:
             self.conn.execute(
                 "UPDATE strategies SET cash=cash-? WHERE strategy_id=?", (cost, strategy_id))
             self.conn.execute(
-                "INSERT INTO positions VALUES (?,?,?,?,?,?,?)",
-                (strategy_id, symbol, qty, entry_price, cost, order_link_id, _now()))
+                "INSERT INTO positions VALUES (?,?,?,?,?,?,?,?)",
+                (strategy_id, symbol, qty, entry_price, cost, order_link_id,
+                 _now(), entry_price))
             self.conn.execute(
                 "INSERT INTO orders VALUES (?,?,?,?,?,?,?,?)",
                 (order_link_id, strategy_id, symbol, "buy", qty, entry_price,
@@ -183,6 +194,34 @@ class Ledger:
         rows = self.conn.execute(
             "SELECT symbol, SUM(qty) AS q FROM positions GROUP BY symbol").fetchall()
         return {r["symbol"]: float(r["q"]) for r in rows}
+
+    def update_peak(self, strategy_id: str, symbol: str, price: float):
+        """Sube el precio pico de la posición (nunca baja), para el trailing stop."""
+        self.conn.execute(
+            "UPDATE positions SET peak_price=MAX(COALESCE(peak_price, entry_price), ?) "
+            "WHERE strategy_id=? AND symbol=?", (price, strategy_id, symbol))
+        self.conn.commit()
+
+    # --- Consultas para protecciones (cooldown, stoploss guard, drawdown) ---
+    def last_close_time(self, strategy_id: str, symbol: str) -> str | None:
+        row = self.conn.execute(
+            "SELECT MAX(closed_at) AS t FROM trades WHERE strategy_id=? AND symbol=?",
+            (strategy_id, symbol)).fetchone()
+        return row["t"]
+
+    def stop_losses_since(self, strategy_id: str, since_iso: str) -> tuple[int, str | None]:
+        """(número de stops en la ventana, timestamp del último stop)."""
+        row = self.conn.execute(
+            "SELECT COUNT(*) AS n, MAX(closed_at) AS last FROM trades "
+            "WHERE strategy_id=? AND reason IN ('stop_loss','trailing_stop') "
+            "AND closed_at >= ?", (strategy_id, since_iso)).fetchone()
+        return int(row["n"]), row["last"]
+
+    def pnls_since(self, strategy_id: str, since_iso: str) -> list[float]:
+        rows = self.conn.execute(
+            "SELECT pnl FROM trades WHERE strategy_id=? AND closed_at >= ? ORDER BY id",
+            (strategy_id, since_iso)).fetchall()
+        return [float(r["pnl"]) for r in rows]
 
     # --- Métricas y auditoría ---
     def buys_today(self, strategy_id: str) -> int:

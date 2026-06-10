@@ -85,6 +85,22 @@ python scripts/strategy_report.py [--send]     # métricas por estrategia
 python scripts/backtest.py --compare           # estrategias sobre los mismos datos
 ```
 
+### Protecciones (inspiradas en Freqtrade)
+
+Configurables por estrategia en el bloque `portfolio` (heredan del base):
+
+| Parámetro | Qué hace |
+|---|---|
+| `trailing_stop` + `trailing_stop_positive` + `trailing_stop_positive_offset` | Al superar el offset de ganancia, un stop dinámico sigue al precio pico y asegura ganancias |
+| `cooldown_minutes` | Tras cerrar una posición, no recomprar el mismo símbolo durante N minutos |
+| `stoploss_guard_limit` / `_lookback_minutes` / `_stop_minutes` | N stop-loss en la ventana pausan las ENTRADAS de la estrategia (las salidas siguen activas) |
+| `max_drawdown_pct` + `drawdown_lookback_minutes` | Si el drawdown realizado excede el % del capital en la ventana, se pausan las entradas |
+
+Los rechazos por protección quedan auditados en la tabla `signals`
+(`cooldown`, `stoploss_guard`, `max_drawdown`) y se notifican al webhook
+solo cuando el motivo cambia (sin spam por ciclo). El backtest simula
+trailing stop y cooldown, por lo que `--compare` mide su efecto real.
+
 ### Decisiones de arquitectura
 
 - **Bloqueo total ante divergencia**: si ledger y wallet no cuadran, se

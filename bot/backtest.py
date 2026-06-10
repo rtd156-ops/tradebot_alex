@@ -49,6 +49,10 @@ def run_backtest(symbol: str, df: pd.DataFrame, strategy_params: dict,
     curve = []            # equity valuada a mercado, para el drawdown
     in_pos = False
     entry = 0.0
+    peak = 0.0
+    last_exit_i = None
+    # Cooldown en velas: minutos / duración estimada de la vela (diaria)
+    cooldown_candles = int(risk_params.get("cooldown_minutes", 0) / 1440 + 0.999)
 
     for i in range(warmup, len(df)):
         price = float(close[i])
@@ -60,12 +64,18 @@ def run_backtest(symbol: str, df: pd.DataFrame, strategy_params: dict,
             # El stop se evalúa primero: dentro de la vela, el peor caso manda
             if float(low[i]) <= sl_price:
                 exit_price, reason = sl_price, "stop_loss"
+            elif (risk.trailing_stop and peak >= entry * (1 + risk.trailing_offset)
+                  and float(low[i]) <= peak * (1 - risk.trailing_pct)):
+                exit_price, reason = peak * (1 - risk.trailing_pct), "trailing_stop"
             elif float(high[i]) >= tp_price:
                 exit_price, reason = tp_price, "take_profit"
             else:
                 signal = strategy.generate(symbol, df.iloc[: i + 1], 0.0)
                 if signal.action == "SELL":
                     exit_price, reason = price, "signal"
+            # El pico se actualiza tras evaluar la vela (conservador: el máximo
+            # de esta vela no puede disparar su propio trailing)
+            peak = max(peak, float(high[i]))
             if exit_price is not None:
                 trade_ret = exit_price / entry * (1 - fee_pct) ** 2 - 1
                 equity *= 1 + trade_ret
@@ -77,11 +87,17 @@ def run_backtest(symbol: str, df: pd.DataFrame, strategy_params: dict,
                     "reason": reason,
                 })
                 in_pos = False
+                last_exit_i = i
         else:
+            if (cooldown_candles and last_exit_i is not None
+                    and i - last_exit_i < cooldown_candles):
+                curve.append(equity)
+                continue
             signal = strategy.generate(symbol, df.iloc[: i + 1], 0.0)
             if signal.action == "BUY":
                 in_pos = True
                 entry = price
+                peak = price
 
         curve.append(equity * (price / entry) if in_pos else equity)
 

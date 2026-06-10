@@ -19,6 +19,21 @@ portfolio:
   max_daily_trades: 6
   # Comisión simulada por operación (0.1% como Bybit spot)
   fee_pct: 0.001
+  # --- Trailing stop (estilo Freqtrade) ---
+  # Al superar el offset de ganancia, un stop dinámico sigue al precio pico
+  trailing_stop: true
+  trailing_stop_positive: 0.02          # distancia del stop bajo el pico
+  trailing_stop_positive_offset: 0.03   # ganancia necesaria para activarlo
+  # --- Protecciones (estilo Freqtrade, por estrategia en modo multi) ---
+  # No recomprar el mismo símbolo durante N minutos tras cerrar una posición
+  cooldown_minutes: 120
+  # Pausar entradas si hay N stop-loss en la ventana de lookback
+  stoploss_guard_limit: 3
+  stoploss_guard_lookback_minutes: 1440   # 24 h
+  stoploss_guard_stop_minutes: 720        # pausa de 12 h
+  # Pausar entradas si el drawdown realizado excede este % del capital
+  max_drawdown_pct: 0.15
+  drawdown_lookback_minutes: 10080        # ventana de 7 días
 
 assets:
   # Selección inicial según scripts/recommend.py (2026-06-10):
@@ -69,6 +84,7 @@ multi_strategy:
         stop_loss_pct: 0.03
         take_profit_pct: 0.06
         max_daily_trades: 2
+        max_drawdown_pct: 0.10   # la conservadora se pausa antes
       strategy:
         buy_threshold: 0.65
         sell_threshold: -0.45
@@ -93,6 +109,8 @@ multi_strategy:
         stop_loss_pct: 0.08
         take_profit_pct: 0.16
         max_daily_trades: 8
+        stoploss_guard_limit: 4   # tolera un stop más antes de pausarse
+        max_drawdown_pct: 0.20
       strategy:
         buy_threshold: 0.35
         sell_threshold: -0.6

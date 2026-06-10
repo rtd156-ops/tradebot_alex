@@ -52,6 +52,7 @@ class MultiEngine:
             exchange="bybit" if config.mode == "live" else "paper",
         )
         self._last_heartbeat = 0.0
+        self._last_reject: dict[tuple, str] = {}
 
         # Instancias por estrategia (señal + riesgo) y registro en el ledger
         self._engines = {}
@@ -109,7 +110,10 @@ class MultiEngine:
             # 1. Salidas por riesgo de la posición lógica de ESTA estrategia
             pos = self.ledger.position(sid, symbol)
             if pos:
-                exit_reason = risk.check_exit(pos["entry_price"], price)
+                self.ledger.update_peak(sid, symbol, price)
+                pos = self.ledger.position(sid, symbol)
+                exit_reason = risk.check_exit(pos["entry_price"], price,
+                                              pos.get("peak_price"))
                 if exit_reason:
                     self._close(strat, symbol, pos, price, exit_reason.lower())
                     continue
@@ -135,6 +139,7 @@ class MultiEngine:
                 self.ledger.open_position(sid, symbol, fill.qty, fill.price,
                                           fill.cost, link_id)
                 self.ledger.record_signal(sid, symbol, "BUY", signal.score, price, True)
+                self._last_reject.pop((sid, symbol, "BUY"), None)
                 usdt_available -= fill.cost
                 self.notifier.notify(
                     f"[{sid}] COMPRA {symbol} @ {fill.price:.2f} "
@@ -185,8 +190,12 @@ class MultiEngine:
                                   signal.score, signal.price, False, reason)
         log.info("[%s] señal %s %s rechazada: %s", sid, signal.action,
                  signal.symbol, reason)
-        if not notify:
+        # El mismo rechazo repetido ciclo tras ciclo solo se notifica una vez
+        key = (sid, signal.symbol, signal.action)
+        if not notify or self._last_reject.get(key) == reason:
+            self._last_reject[key] = reason
             return
+        self._last_reject[key] = reason
         self.notifier.notify(
             f"[{sid}] Señal {signal.action} {signal.symbol} rechazada: {reason}",
             event="rejected_signal",
