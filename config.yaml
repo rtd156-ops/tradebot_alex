@@ -1,0 +1,65 @@
+# Configuración del bot de trading
+# mode: "paper" (simulado, recomendado) | "live" (dinero real en Bybit)
+mode: paper
+
+# Cada cuántos minutos revisa el mercado
+interval_minutes: 15
+
+# Capital inicial simulado (USD) para el modo paper
+paper_starting_cash: 10000
+
+portfolio:
+  # Máximo % del portafolio en una sola posición
+  max_position_pct: 0.15
+  # Stop-loss: vende si la posición cae este % desde el precio de compra
+  stop_loss_pct: 0.05
+  # Take-profit: vende si la posición sube este % desde el precio de compra
+  take_profit_pct: 0.10
+  # Máximo de operaciones de compra por día
+  max_daily_trades: 6
+  # Comisión simulada por operación (0.1% como Bybit spot)
+  fee_pct: 0.001
+
+assets:
+  crypto:
+    - BTC/USDT
+    - ETH/USDT
+    - SOL/USDT
+  stocks:
+    - AAPL
+    - MSFT
+    - NVDA
+    - SPY
+
+strategy:
+  # Timeframe de las velas para el análisis
+  timeframe: 1h
+  # Velas históricas a descargar por activo
+  lookback_candles: 200
+  # Medias móviles (cruce rápida/lenta)
+  sma_fast: 20
+  sma_slow: 50
+  # RSI
+  rsi_period: 14
+  rsi_oversold: 30
+  rsi_overbought: 70
+  # Peso del sentimiento de noticias en la señal final (0 a 1)
+  news_weight: 0.3
+  # Umbral de score combinado para comprar/vender (entre -1 y 1)
+  buy_threshold: 0.5
+  sell_threshold: -0.5
+
+news:
+  enabled: true
+  # Fuentes RSS de noticias financieras y cripto
+  feeds:
+    - https://www.coindesk.com/arc/outboundfeeds/rss/
+    - https://cointelegraph.com/rss
+    - https://finance.yahoo.com/news/rssindex
+    - https://feeds.content.dowjones.io/public/rss/mw_topstories
+  # Máximo de titulares recientes a analizar por ciclo
+  max_headlines: 60
+
+notifications:
+  # Notificar por Telegram cada operación (requiere TELEGRAM_BOT_TOKEN en .env)
+  telegram: false
