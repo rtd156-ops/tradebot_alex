@@ -73,3 +73,11 @@ class Config:
     @property
     def telegram_chat_id(self) -> str:
         return os.getenv("TELEGRAM_CHAT_ID", "")
+
+    @property
+    def webhook_url(self) -> str:
+        return os.getenv("WEBHOOK_URL", "")
+
+    @property
+    def webhook_token(self) -> str:
+        return os.getenv("WEBHOOK_TOKEN", "")

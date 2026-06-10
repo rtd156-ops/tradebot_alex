@@ -27,6 +27,8 @@ class Engine:
         self.notifier = Notifier(
             config.telegram_token, config.telegram_chat_id,
             config.notifications.get("telegram", False),
+            config.webhook_url, config.webhook_token,
+            config.notifications.get("webhook", False),
         )
         self.broker = self._build_broker()
 

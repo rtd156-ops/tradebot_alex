@@ -21,10 +21,12 @@ portfolio:
   fee_pct: 0.001
 
 assets:
+  # Selección inicial según scripts/recommend.py (2026-06-10):
+  # BTC (mejor score y noticias), XRP (2º score) y BNB (menor caída a 30d).
   crypto:
     - BTC/USDT
-    - ETH/USDT
-    - SOL/USDT
+    - XRP/USDT
+    - BNB/USDT
   stocks:
     - AAPL
     - MSFT
@@ -63,3 +65,6 @@ news:
 notifications:
   # Notificar por Telegram cada operación (requiere TELEGRAM_BOT_TOKEN en .env)
   telegram: false
+  # Notificar vía webhook HTTP, por ejemplo a un agente de OpenClaw
+  # (requiere WEBHOOK_URL en .env; el bot manda POST JSON {"text": mensaje})
+  webhook: false
